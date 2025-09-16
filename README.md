@@ -132,6 +132,20 @@ Then run the tests:
 pytest tests/ -v
 ```
 
+### Codex Web setup
+
+When running the test suite inside Codex Web, add the following line to the
+"Environment / setup script" field so that the required Python version and
+dependencies are ready before `pytest` runs:
+
+```bash
+./scripts/codex_web_setup.sh
+```
+
+The script bootstraps Python 3.10.2 via `pyenv` when available (falling back to
+the system interpreter if that version cannot be built) and installs the
+project in editable mode together with `pytest` and `pytest-asyncio`.
+
 To test specific profiles:
 ```bash
 # Test DSL tools
