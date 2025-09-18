@@ -555,7 +555,7 @@ This is the consolidated master list tracking all ReaScript API methods implemen
 Based on the ReaScript API documentation (https://www.reaper.fm/sdk/reascript/reascripthelp.html), here are additional methods that could be implemented.
 
 ### Summary of Missing Functions
-- **Core API Functions**: ~10 functions (APIExists, APITest, etc.)
+- **Core API Functions**: ~5 functions (GetAppVersion enhancements and related helpers)
 - **Audio Functions**: ~18 functions (Audio_Init, AudioAccessor functions, etc.)
 - **Track Management Extended**: ~14 functions (control surface, extended info functions)
 - **Media Item Extended**: ~11 functions (extended info, state management)
@@ -568,17 +568,17 @@ Based on the ReaScript API documentation (https://www.reaper.fm/sdk/reascript/re
 - **String/Utility Functions**: ~20 functions (string formatting, GUID operations)
 - **Low-Level/Advanced Functions**: ~12 functions (plugin API, object state)
 
-**Total Unimplemented**: ~664+ functions (including SWS extensions)
+**Total Unimplemented**: ~659+ functions (including SWS extensions)
 
 Note: Many functions marked as "partial impl exists" have basic implementations but may need extended functionality to match the full ReaScript API.
 
 ### Core API Functions
-- [ ] `APITest` - Test API functionality
+- [x] `APITest` - Test API functionality
 - [ ] `GetAppVersion` - Get REAPER version string (partial impl exists)
-- [ ] `GetLastTouchedFX` - Get last touched FX
-- [ ] `GetMasterMuteSoloFlags` - Get master mute/solo flags
-- [ ] `PreventUIRefresh` - Prevent UI refresh temporarily
-- [ ] `ReaScriptError` - Generate ReaScript error
+- [x] `GetLastTouchedFX` - Get last touched FX
+- [x] `GetMasterMuteSoloFlags` - Get master mute/solo flags
+- [x] `PreventUIRefresh` - Prevent UI refresh temporarily
+- [x] `ReaScriptError` - Generate ReaScript error
 
 ### Audio Functions
 - [ ] `Audio_Init` - Initialize audio system
@@ -637,7 +637,7 @@ Note: Many functions marked as "partial impl exists" have basic implementations 
 - [ ] `FxGetPresetName` - Get FX preset name
 - [ ] `GetFocusedFX` - Get focused FX
 - [ ] `GetFocusedFX2` - Get focused FX v2
-- [ ] `GetLastTouchedFX` - Get last touched FX
+- [x] `GetLastTouchedFX` - Get last touched FX
 - [ ] `TakeFX_AddByName` - Add take FX by name
 - [ ] `TakeFX_CopyToTake` - Copy FX to take
 - [ ] `TakeFX_CopyToTrack` - Copy FX to track
@@ -927,9 +927,9 @@ Note: Many functions marked as "partial impl exists" have basic implementations 
 - [ ] `GetItemProjectContext` - Get item project context
 - [ ] `GetItemStateChunk` - Get item state chunk
 - [ ] `GetLastMarkerAndCurRegion` - Get last marker and current region
-- [ ] `GetLastTouchedFX` - Get last touched FX
+- [x] `GetLastTouchedFX` - Get last touched FX
 - [ ] `GetMainHwnd` - Get main window handle (partial impl exists)
-- [ ] `GetMasterMuteSoloFlags` - Get master mute/solo flags
+- [x] `GetMasterMuteSoloFlags` - Get master mute/solo flags
 - [ ] `GetMasterTrack` - Get master track (partial impl exists)
 - [ ] `GetMasterTrackVisibility` - Get master track visibility
 - [ ] `GetMaxMidiInputs` - Get max MIDI inputs
@@ -1222,7 +1222,7 @@ Note: Many functions marked as "partial impl exists" have basic implementations 
 - [ ] `plugin_getImportableProjectFilterList` - Get importable project filter list
 - [ ] `plugin_register` - Register plugin
 - [ ] `PluginWantsAlwaysRunFx` - Plugin wants always run FX
-- [ ] `PreventUIRefresh` - Prevent UI refresh
+- [x] `PreventUIRefresh` - Prevent UI refresh
 - [ ] `PromptForAction` - Prompt for action
 - [ ] `ReaImGui_Attach` - ReaImGui attach
 - [ ] `ReaImGui_CreateContext` - ReaImGui create context
@@ -1232,7 +1232,7 @@ Note: Many functions marked as "partial impl exists" have basic implementations 
 - [ ] `ReaMote_GetLatency` - ReaMote get latency
 - [ ] `ReaMote_OnCommand` - ReaMote on command
 - [ ] `ReaperGetPitchShiftAPI` - Get pitch shift API
-- [ ] `ReaScriptError` - ReaScript error
+- [x] `ReaScriptError` - ReaScript error
 - [ ] `RecursiveCreateDirectory` - Recursively create directory (partial impl exists)
 - [ ] `reduce_open_files` - Reduce open files
 - [ ] `RefreshToolbar` - Refresh toolbar

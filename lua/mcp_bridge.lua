@@ -759,7 +759,70 @@ local function process_request()
                         local version = reaper.GetAppVersion()
                         response.ok = true
                         response.ret = version
-                    
+
+                    elseif fname == "APITest" then
+                        if #args == 0 then
+                            reaper.APITest()
+                            response.ok = true
+                        else
+                            response.error = "APITest does not accept arguments"
+                            response.ok = false
+                        end
+
+                    elseif fname == "GetLastTouchedFX" then
+                        if #args == 0 then
+                            local retval, tracknumber, fxnumber, paramnumber = reaper.GetLastTouchedFX()
+                            response.ok = true
+                            response.retval = retval
+                            response.tracknumber = tracknumber or 0
+                            response.fxnumber = fxnumber or 0
+                            response.paramnumber = paramnumber or 0
+                        else
+                            response.error = "GetLastTouchedFX does not accept arguments"
+                            response.ok = false
+                        end
+
+                    elseif fname == "GetMasterMuteSoloFlags" then
+                        if #args == 0 then
+                            local flags = reaper.GetMasterMuteSoloFlags()
+                            response.ok = true
+                            response.flags = flags or 0
+                        else
+                            response.error = "GetMasterMuteSoloFlags does not accept arguments"
+                            response.ok = false
+                        end
+
+                    elseif fname == "PreventUIRefresh" then
+                        if #args >= 1 then
+                            local prevent_count = tonumber(args[1])
+                            if prevent_count then
+                                reaper.PreventUIRefresh(prevent_count)
+                                response.ok = true
+                                response.prevent_count = prevent_count
+                            else
+                                response.error = "PreventUIRefresh requires a numeric prevent_count"
+                                response.ok = false
+                            end
+                        else
+                            response.error = "PreventUIRefresh requires 1 argument"
+                            response.ok = false
+                        end
+
+                    elseif fname == "ReaScriptError" then
+                        if #args >= 1 then
+                            local message = tostring(args[1] or "")
+                            if message ~= "" then
+                                reaper.ReaScriptError(message)
+                                response.ok = true
+                            else
+                                response.error = "ReaScriptError requires a non-empty message"
+                                response.ok = false
+                            end
+                        else
+                            response.error = "ReaScriptError requires 1 argument"
+                            response.ok = false
+                        end
+
                     elseif fname == "GetTrack" then
                         if #args >= 2 then
                             local track = reaper.GetTrack(args[1], args[2])
