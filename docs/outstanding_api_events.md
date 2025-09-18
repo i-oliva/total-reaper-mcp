@@ -165,12 +165,56 @@ This document aggregates the unchecked entries from `IMPLEMENTATION_MASTER.md`, 
 ### SWS/BR extension backlog
 - 409 SWS extension (`BR_*`) functions remain outstanding. They span envelope allocation, mouse context queries, take/track GUID helpers, Win32 window utilities, and numerous UI helpers. Implement these only after confirming SWS is a hard dependency for the target deployment. The authoritative list (with descriptions) stays in `IMPLEMENTATION_MASTER.md` under **File I/O and Preferences**.
 
-## Coding Agent Prompt
+## Two‑Step Flow
 
-Use the template below when handing a group to the coding agent. Replace `<GROUP_NAME>` with one of the priority blocks above and prune the function bullets to only the ones you expect them to tackle in that pass.
+To reduce guesswork for lesser‑known functions and edge cases, use this two‑step workflow:
+
+1) Ask the Notebook LLM (which has the REAPER API indexed) to produce exact API definitions for the subset you’re about to implement.
+2) Feed that response into the Coding Agent prompt to wire up Lua + Python + tests.
+
+### Notebook LLM Prompt (≤ 2000 chars)
+
+Use this compact prompt. If `<FUNCTION_LIST>` is long, split into batches of ≤10 functions.
 
 ```
-You are working in /home/i-oliva/total-reaper-mcp.
+You are Notebook LLM with REAPER API indexed.
+Task: return precise, copy‑pasteable definitions for these functions:
+<FUNCTION_LIST>
+
+Output ONLY a block titled "API Reference Context" using this compact schema, one bullet per function:
+- fn: Exact name
+  avail: base|SWS|other
+  call: reaper.Func(arg1, arg2, ...)
+  params: name:type[notes]; name:type[notes]
+  returns: name:type[notes]; name:type[notes]
+  notes: key behaviors (indexing 0/1‑based, pointer vs index, ranges)
+  err: failure/return conventions
+  ex: minimal Lua snippet
+
+Rules:
+- Be exact; if unknown, write "unknown".
+- Always state 0‑based vs 1‑based and pointer vs index.
+- Mark SWS/BR dependencies when applicable.
+- Keep concise; no prose outside the block.
+
+Example entry (structure only):
+- fn: TrackFX_GetParamEx
+  avail: base
+  call: reaper.TrackFX_GetParamEx(track, fx, param)
+  params: track:MediaTrack*; fx:int[0‑based]; param:int[0‑based]
+  returns: value:number; min:number; max:number; mid:number
+  notes: invalid indices => nil/false
+  err: nil/false on invalid track/fx/param
+  ex: local v,min,max,mid = reaper.TrackFX_GetParamEx(tr,0,0)
+```
+
+When the Notebook LLM responds, copy just the "API Reference Context" block into the Coding Agent prompt below.
+
+## Coding Agent Prompt
+
+Use the template below when handing a group to the coding agent. Replace `<GROUP_NAME>` with one of the priority blocks above and prune to only the functions you expect to tackle in that pass. Paste the "API Reference Context" from the Notebook step where indicated.
+
+```
 Goal: implement the remaining REAPER bridge coverage for <GROUP_NAME> (see outstanding_api_events.md).
 
 Context you must keep in mind:
@@ -178,7 +222,18 @@ Context you must keep in mind:
 - Lua dispatch lives in lua/mcp_bridge.lua (search for the existing elseif fname == "..." blocks). Mirror the Python signature.
 - Tests are under tests/ and rely on pytest + the async bridge fixtures. Add or extend coverage before exiting.
 - After wiring the Lua and Python pieces, update IMPLEMENTATION_MASTER.md and outstanding_api_events.md to reflect the new status.
-- Run pytest (or the targeted test module) to confirm nothing regressed.
+- Important: Codex WEB cannot run REAPER or REAPER‑dependent tests. Do NOT attempt to execute tests here. Write/adjust the tests normally; do not add skip/conditional markers. The maintainer will run them locally and report back.
+
+API Reference Context (compact APIRef schema from Notebook LLM):
+<PASTE THE "API Reference Context" BLOCK HERE>
+
+Constraints and tips:
+- Treat the API Reference Context as canonical for signatures, param order, returns, and indexing rules.
+- The block uses keys: fn, avail, call, params, returns, notes, err, ex.
+- Be explicit about pointer vs index parameters when crossing the Python↔Lua boundary; prefer indices for cross‑call references to avoid stale userdata.
+- Reuse existing error/OK response shapes in lua/mcp_bridge.lua and server/tools/* for consistency.
+- For SWS/BR‑only functions, gate or stub with clear error messages unless SWS is confirmed available.
+ - Testing constraint: do not run pytest here. Write tests as usual; do not add skip/conditional markers. Include exact commands for local execution (e.g., `pytest -k <module>`). The maintainer will run with REAPER available.
 
 Tasks:
 1. Implement Lua bindings for the listed functions in <GROUP_NAME>.
