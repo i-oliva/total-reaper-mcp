@@ -25,7 +25,7 @@ async def get_reaper_version() -> str:
 async def api_exists(function_name: str) -> str:
     """Check if a ReaScript API function exists"""
     result = await bridge.call_lua("APIExists", [function_name])
-    
+
     if result.get("ok"):
         exists = result.get("ret", False)
         return f"API function '{function_name}' {'exists' if exists else 'does not exist'}"
@@ -33,10 +33,125 @@ async def api_exists(function_name: str) -> str:
         raise Exception(f"Failed to check API function: {result.get('error', 'Unknown error')}")
 
 
+async def api_test() -> str:
+    """Execute REAPER's APITest helper to verify bridge connectivity."""
+    result = await bridge.call_lua("APITest", [])
+
+    if result.get("ok"):
+        return "API test executed successfully."
+    else:
+        raise Exception(f"APITest failed: {result.get('error', 'Unknown error')}")
+
+
+def _format_last_touched_fx_description(tracknumber: int, fxnumber: int, paramnumber: int) -> str:
+    """Return a human readable description of GetLastTouchedFX results."""
+    track_index = tracknumber & 0xFFFF
+    item_index = (tracknumber >> 16) & 0xFFFF
+
+    if track_index == 0:
+        track_desc = "master track"
+    else:
+        track_desc = f"track {track_index}"  # Already 1-based per API docs
+
+    parts = [f"location: {track_desc}"]
+
+    if item_index > 0:
+        # Item FX. High word of fxnumber is the take index (0-based per API docs), low word is FX index.
+        take_index = (fxnumber >> 16) & 0xFFFF
+        fx_index = fxnumber & 0xFFFF
+        parts.append(f"item index (1-based): {item_index}")
+        parts.append(f"take index (0-based): {take_index}")
+        parts.append(f"FX index (0-based): {fx_index}")
+    else:
+        # Track FX. Low 24 bits are FX index, next 8 bits indicate record FX when set to 1.
+        fx_index = fxnumber & 0xFFFFFF
+        record_fx_flag = (fxnumber >> 24) & 0xFF
+        record_fx = record_fx_flag == 1
+        parts.append(f"FX index (0-based): {fx_index}")
+        parts.append(f"record FX: {'yes' if record_fx else 'no'}")
+
+    parts.append(f"parameter index (0-based): {paramnumber}")
+    parts.append(f"raw tracknumber: {tracknumber}")
+    parts.append(f"raw fxnumber: {fxnumber}")
+
+    return "Last touched FX parameter -> " + ", ".join(parts)
+
+
+async def get_last_touched_fx() -> str:
+    """Report information about the most recently touched FX parameter."""
+    result = await bridge.call_lua("GetLastTouchedFX", [])
+
+    if not result.get("ok"):
+        raise Exception(f"Failed to get last touched FX: {result.get('error', 'Unknown error')}")
+
+    touched = bool(result.get("retval", False))
+    tracknumber = int(result.get("tracknumber", 0) or 0)
+    fxnumber = int(result.get("fxnumber", 0) or 0)
+    paramnumber = int(result.get("paramnumber", -1) or -1)
+
+    if not touched:
+        return "No FX parameter has been touched recently."
+
+    description = _format_last_touched_fx_description(tracknumber, fxnumber, paramnumber)
+    return description
+
+
+async def get_master_mute_solo_flags() -> str:
+    """Retrieve the master mute and solo state flags."""
+    result = await bridge.call_lua("GetMasterMuteSoloFlags", [])
+
+    if not result.get("ok"):
+        raise Exception(f"Failed to get master mute/solo flags: {result.get('error', 'Unknown error')}")
+
+    flags = int(result.get("flags", 0) or 0)
+    mute = bool(flags & 0x1)
+    solo = bool(flags & 0x2)
+
+    return ("Master mute: {mute_state}, master solo: {solo_state} (flags={flags})"
+            .format(
+                mute_state="on" if mute else "off",
+                solo_state="on" if solo else "off",
+                flags=flags,
+            ))
+
+
+async def prevent_ui_refresh(prevent_count: int) -> str:
+    """Adjust REAPER's UI refresh prevention counter."""
+    if not isinstance(prevent_count, int):
+        raise ValueError("prevent_count must be an integer")
+    if prevent_count == 0:
+        raise ValueError("prevent_count must be non-zero to change the UI refresh state")
+
+    result = await bridge.call_lua("PreventUIRefresh", [prevent_count])
+
+    if not result.get("ok"):
+        raise Exception(f"Failed to adjust UI refresh prevention: {result.get('error', 'Unknown error')}")
+
+    if prevent_count > 0:
+        return f"UI refresh prevention incremented by {prevent_count}."
+    else:
+        return f"UI refresh prevention decremented by {abs(prevent_count)}."
+
+
+async def reascript_error(message: str) -> str:
+    """Queue a ReaScript error message for display in REAPER."""
+    if not isinstance(message, str) or not message.strip():
+        raise ValueError("message must be a non-empty string")
+    if message.lstrip().startswith("!"):
+        raise ValueError("message cannot begin with '!' when sent via the Lua bridge")
+
+    result = await bridge.call_lua("ReaScriptError", [message])
+
+    if not result.get("ok"):
+        raise Exception(f"Failed to send ReaScript error: {result.get('error', 'Unknown error')}")
+
+    return f"Scheduled ReaScript error message: {message}"
+
+
 async def get_last_color_theme_file() -> str:
     """Get the last color theme file"""
     result = await bridge.call_lua("GetLastColorThemeFile", [])
-    
+
     if result.get("ok"):
         theme_file = result.get("ret", "")
         if theme_file:
@@ -66,7 +181,7 @@ async def get_toggle_command_state(command_id: int) -> str:
 async def execute_action(command_id: int, flag: int = 0) -> str:
     """Execute a REAPER action by command ID"""
     result = await bridge.call_lua("Main_OnCommand", [command_id, flag])
-    
+
     if result.get("ok"):
         return f"Executed action: command ID {command_id}"
     else:
@@ -323,10 +438,15 @@ def register_core_api_tools(mcp) -> int:
         # Core API
         (get_reaper_version, "Get the REAPER version string"),
         (api_exists, "Check if a ReaScript API function exists"),
+        (api_test, "Execute REAPER's APITest helper"),
+        (get_last_touched_fx, "Get information about the last touched FX parameter"),
+        (get_master_mute_solo_flags, "Get master mute/solo flag state"),
+        (prevent_ui_refresh, "Adjust the UI refresh prevention counter"),
+        (reascript_error, "Schedule a REAPER console error message"),
         (get_last_color_theme_file, "Get the last color theme file"),
         (get_toggle_command_state, "Get toggle command state"),
         (execute_action, "Execute a REAPER action by command ID"),
-        
+
         # Conversions
         (db_to_slider, "Convert dB value to slider value (0.0 to 1.0)"),
         (slider_to_db, "Convert slider value (0.0 to 1.0) to dB value"),

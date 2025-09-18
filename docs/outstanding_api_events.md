@@ -9,7 +9,7 @@ This document aggregates the unchecked entries from `IMPLEMENTATION_MASTER.md`, 
 
 | Priority | Scope | Outstanding |
 | --- | --- | --- |
-| High | Core API, audio/media/MIDI state, FX parameter & preset control | 58 functions |
+| High | Core API, audio/media/MIDI state, FX parameter & preset control | 53 functions |
 | Medium | Control-surface event mirroring, plugin/object plumbing | 53 functions |
 | Low | String & GUID helpers, SWS/BR extension surface | 427 functions |
 
@@ -18,11 +18,7 @@ This document aggregates the unchecked entries from `IMPLEMENTATION_MASTER.md`, 
 ## High Priority
 
 ### Core engine & session control
-- `APITest` — Test API functionality
-- `GetLastTouchedFX` — Get last touched FX
-- `GetMasterMuteSoloFlags` — Get master mute/solo flags
-- `PreventUIRefresh` — Prevent UI refresh temporarily
-- `ReaScriptError` — Generate ReaScript error
+_No outstanding functions in this scope — APITest, GetLastTouchedFX, GetMasterMuteSoloFlags, PreventUIRefresh, and ReaScriptError are now covered._
 
 ### Audio, media, and MIDI state access
 - `Audio_Init` — Initialize audio system
@@ -39,7 +35,6 @@ This document aggregates the unchecked entries from `IMPLEMENTATION_MASTER.md`, 
 - `FxGetPresetName` — Get FX preset name
 - `GetFocusedFX` — Get focused FX
 - `GetFocusedFX2` — Get focused FX v2
-- `GetLastTouchedFX` — Get last touched FX
 - `TakeFX_EndParamEdit` — End take FX param edit
 - `TakeFX_FormatParamValue` — Format take FX param value
 - `TakeFX_FormatParamValueNormalized` — Format normalized param value

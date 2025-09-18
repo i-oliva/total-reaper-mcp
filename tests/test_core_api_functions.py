@@ -9,6 +9,8 @@ import pytest_asyncio
 import asyncio
 import os
 from pathlib import Path
+from server.bridge import bridge
+from server.tools.core_api import prevent_ui_refresh, reascript_error
 from .test_utils import (
     ensure_clean_project,
     assert_response_contains,
@@ -37,6 +39,160 @@ async def test_api_exists(reaper_mcp_client):
     )
     assert result is not None
     assert_response_contains(result, "does not exist")
+
+
+@pytest.mark.asyncio
+async def test_api_test_tool_success(reaper_mcp_client):
+    """Ensure the APITest helper is exposed and callable."""
+    await ensure_clean_project(reaper_mcp_client)
+
+    result = await reaper_mcp_client.call_tool(
+        "api_test",
+        {}
+    )
+    assert_response_contains(result, "API test executed successfully")
+
+
+@pytest.mark.asyncio
+async def test_api_test_bridge_argument_error():
+    """APITest should reject unexpected arguments at the Lua layer."""
+    result = await bridge.call_lua("APITest", ["unexpected"])
+    assert not result.get("ok")
+    assert "argument" in (result.get("error", "") or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_get_last_touched_fx_no_context(reaper_mcp_client):
+    """When no FX has been touched, the tool should report that state."""
+    await ensure_clean_project(reaper_mcp_client)
+
+    result = await reaper_mcp_client.call_tool(
+        "get_last_touched_fx",
+        {}
+    )
+    assert_response_contains(result, "No FX parameter has been touched")
+
+
+@pytest.mark.asyncio
+async def test_get_last_touched_fx_after_adjustment(reaper_mcp_client):
+    """Touch a track FX parameter and confirm it is reported."""
+    await ensure_clean_project(reaper_mcp_client)
+
+    await reaper_mcp_client.call_tool(
+        "insert_track",
+        {"index": 0, "use_defaults": True}
+    )
+
+    add_fx_result = await reaper_mcp_client.call_tool(
+        "track_fx_add_by_name",
+        {"track_index": 0, "fx_name": "ReaEQ (Cockos)", "instantiate": True}
+    )
+    assert "Added" in add_fx_result.content[0].text
+
+    await reaper_mcp_client.call_tool(
+        "track_fx_show",
+        {"track_index": 0, "fx_index": 0, "show": 3}
+    )
+    await reaper_mcp_client.call_tool(
+        "track_fx_set_param",
+        {"track_index": 0, "fx_index": 0, "param_index": 0, "value": 0.25}
+    )
+
+    result = await reaper_mcp_client.call_tool(
+        "get_last_touched_fx",
+        {}
+    )
+    text = result.content[0].text.lower()
+    assert "last touched fx parameter" in text
+    assert "parameter index" in text
+
+
+@pytest.mark.asyncio
+async def test_get_master_mute_solo_flags(reaper_mcp_client):
+    """Retrieve the master mute/solo flags."""
+    await ensure_clean_project(reaper_mcp_client)
+
+    result = await reaper_mcp_client.call_tool(
+        "get_master_mute_solo_flags",
+        {}
+    )
+    text = result.content[0].text.lower()
+    assert "master mute" in text
+    assert "master solo" in text
+
+
+@pytest.mark.asyncio
+async def test_get_master_mute_solo_flags_bridge_invalid_args():
+    """Bridge should report an error when unexpected arguments are supplied."""
+    result = await bridge.call_lua("GetMasterMuteSoloFlags", [1])
+    assert not result.get("ok")
+    assert "argument" in (result.get("error", "") or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_prevent_ui_refresh_success(reaper_mcp_client):
+    """Increment and then decrement the UI refresh prevention counter."""
+    await ensure_clean_project(reaper_mcp_client)
+
+    engage = await reaper_mcp_client.call_tool(
+        "prevent_ui_refresh",
+        {"prevent_count": 1}
+    )
+    assert_response_contains(engage, "incremented")
+
+    release = await reaper_mcp_client.call_tool(
+        "prevent_ui_refresh",
+        {"prevent_count": -1}
+    )
+    assert_response_contains(release, "decremented")
+
+
+@pytest.mark.asyncio
+async def test_prevent_ui_refresh_invalid_inputs():
+    """prevent_ui_refresh should reject non-integer and zero adjustments."""
+    with pytest.raises(ValueError):
+        await prevent_ui_refresh(0)
+    with pytest.raises(ValueError):
+        await prevent_ui_refresh(1.5)
+
+
+@pytest.mark.asyncio
+async def test_prevent_ui_refresh_bridge_missing_argument():
+    """Lua bridge must enforce the required prevent_count parameter."""
+    result = await bridge.call_lua("PreventUIRefresh", [])
+    assert not result.get("ok")
+    assert "requires" in (result.get("error", "") or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_reascript_error_success(reaper_mcp_client):
+    """Schedule a message to appear in REAPER's console."""
+    await ensure_clean_project(reaper_mcp_client)
+
+    message = "Bridge error message test"
+    result = await reaper_mcp_client.call_tool(
+        "reascript_error",
+        {"message": message}
+    )
+    assert_response_contains(result, message)
+
+
+@pytest.mark.asyncio
+async def test_reascript_error_invalid_inputs():
+    """The helper should guard against empty messages and the '!' prefix."""
+    with pytest.raises(ValueError):
+        await reascript_error("")
+    with pytest.raises(ValueError):
+        await reascript_error("!fatal error")
+
+
+@pytest.mark.asyncio
+async def test_reascript_error_bridge_requires_message():
+    """Lua binding should enforce non-empty message arguments."""
+    result = await bridge.call_lua("ReaScriptError", [""])
+    assert not result.get("ok")
+    assert "requires" in (result.get("error", "") or "").lower()
+
 
 @pytest.mark.asyncio
 async def test_get_last_color_theme_file(reaper_mcp_client):
